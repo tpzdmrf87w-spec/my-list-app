@@ -1,0 +1,686 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Show Tracker</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f9fafb;
+            min-height: 100vh;
+            padding: 2rem 1rem;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            font-size: 2rem;
+            font-weight: 300;
+            color: #1f2937;
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+
+        .sync-status {
+            text-align: center;
+            color: #6b7280;
+            font-size: 0.875rem;
+            margin-bottom: 1rem;
+        }
+
+        .sync-status.synced {
+            color: #10b981;
+        }
+
+        .sync-status.error {
+            color: #ef4444;
+        }
+
+        .add-show {
+            background: white;
+            border-radius: 0.5rem;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .add-show-form {
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+        }
+
+        .form-row {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .add-show input[type="text"] {
+            flex: 1;
+            padding: 0.5rem 1rem;
+            border: 1px solid #e5e7eb;
+            border-radius: 0.5rem;
+            font-size: 1rem;
+        }
+
+        .add-show input[type="text"]:focus {
+            outline: none;
+            border-color: #6b7280;
+            box-shadow: 0 0 0 3px rgba(107, 114, 128, 0.1);
+        }
+
+        .file-input-wrapper {
+            position: relative;
+            overflow: hidden;
+            display: inline-block;
+        }
+
+        .file-input-wrapper input[type="file"] {
+            position: absolute;
+            left: -9999px;
+        }
+
+        .file-input-label {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem 1rem;
+            border: 1px solid #e5e7eb;
+            border-radius: 0.5rem;
+            background: white;
+            cursor: pointer;
+            font-size: 0.875rem;
+            color: #6b7280;
+            transition: all 0.2s;
+        }
+
+        .file-input-label:hover {
+            background: #f9fafb;
+            border-color: #6b7280;
+        }
+
+        .file-input-label.has-file {
+            color: #10b981;
+            border-color: #10b981;
+        }
+
+        .btn {
+            padding: 0.5rem 1rem;
+            border: none;
+            border-radius: 0.5rem;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            white-space: nowrap;
+        }
+
+        .btn-primary {
+            background: #1f2937;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #374151;
+        }
+
+        .btn-primary:disabled {
+            background: #9ca3af;
+            cursor: not-allowed;
+        }
+
+        .btn-next {
+            background: #f3f4f6;
+            color: #374151;
+            font-weight: 500;
+            font-size: 0.875rem;
+        }
+
+        .btn-next:hover {
+            background: #e5e7eb;
+        }
+
+        .btn-delete {
+            background: transparent;
+            color: #9ca3af;
+            padding: 0.5rem;
+        }
+
+        .btn-delete:hover {
+            background: #fef2f2;
+            color: #ef4444;
+        }
+
+        .shows-list {
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+        }
+
+        .show-item {
+            background: white;
+            border-radius: 0.5rem;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            padding: 1rem;
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 1rem;
+            cursor: move;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .show-item.dragging {
+            opacity: 0.5;
+            transform: scale(1.05);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.2);
+        }
+
+        .show-item.drag-over {
+            border-top: 3px solid #1f2937;
+        }
+
+        .drag-handle {
+            color: #9ca3af;
+            cursor: grab;
+            padding: 0.25rem;
+        }
+
+        .drag-handle:active {
+            cursor: grabbing;
+        }
+
+        .show-image {
+            width: 80px;
+            height: 80px;
+            border-radius: 0.5rem;
+            object-fit: cover;
+            background: #f3f4f6;
+            flex-shrink: 0;
+        }
+
+        .show-image-placeholder {
+            width: 80px;
+            height: 80px;
+            border-radius: 0.5rem;
+            background: #f3f4f6;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #9ca3af;
+            flex-shrink: 0;
+        }
+
+        @media (max-width: 640px) {
+            .show-item {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            
+            .show-content {
+                width: 100%;
+                display: flex;
+                gap: 1rem;
+            }
+            
+            .show-info {
+                flex: 1;
+            }
+            
+            .show-actions {
+                display: flex;
+                gap: 0.5rem;
+                width: 100%;
+            }
+            
+            .show-actions .btn-next {
+                flex: 1;
+            }
+        }
+
+        .show-info {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .show-name {
+            font-size: 1.125rem;
+            font-weight: 500;
+            color: #1f2937;
+            margin-bottom: 0.5rem;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .show-controls {
+            display: flex;
+            gap: 0.75rem;
+            font-size: 0.875rem;
+        }
+
+        .control-group {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .control-group label {
+            color: #6b7280;
+        }
+
+        .control-group select {
+            padding: 0.25rem 0.75rem;
+            border: 1px solid #e5e7eb;
+            border-radius: 0.25rem;
+            font-size: 0.875rem;
+        }
+
+        .control-group select:focus {
+            outline: none;
+            border-color: #6b7280;
+            box-shadow: 0 0 0 3px rgba(107, 114, 128, 0.1);
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 3rem;
+            color: #9ca3af;
+        }
+
+        .icon {
+            width: 1.25rem;
+            height: 1.25rem;
+        }
+
+        .icon-small {
+            width: 1rem;
+            height: 1rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Show Tracker</h1>
+        <div id="syncStatus" class="sync-status">Connecting...</div>
+        
+        <div class="add-show">
+            <form class="add-show-form" onsubmit="addShow(event)">
+                <div class="form-row">
+                    <input 
+                        type="text" 
+                        id="newShowInput" 
+                        placeholder="Add a new show..."
+                        autocomplete="off"
+                        required
+                    >
+                    <div class="file-input-wrapper">
+                        <input 
+                            type="file" 
+                            id="imageInput" 
+                            accept="image/*"
+                            onchange="handleFileSelect(event)"
+                        >
+                        <label for="imageInput" class="file-input-label" id="fileLabel">
+                            <svg class="icon-small" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                            </svg>
+                            <span id="fileLabelText">Image</span>
+                        </label>
+                    </div>
+                    <button type="submit" class="btn btn-primary" id="addButton">
+                        <svg class="icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                        </svg>
+                        Add
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        <div id="showsList" class="shows-list"></div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-app.js";
+        import { getFirestore, collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot, writeBatch } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
+        import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-storage.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyBotna-KQsR7BTJ63y2xw3DYEnIIFBLdn8",
+            authDomain: "show-tracker-deeb1.firebaseapp.com",
+            projectId: "show-tracker-deeb1",
+            storageBucket: "show-tracker-deeb1.firebasestorage.app",
+            messagingSenderId: "79547711994",
+            appId: "1:79547711994:web:73bbd36c40ce7fc82ce443"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const storage = getStorage(app);
+        const showsCollection = collection(db, 'shows');
+
+        let shows = [];
+        let unsubscribe = null;
+        let draggedIndex = null;
+        let selectedFile = null;
+
+        function updateSyncStatus(message, type = 'normal') {
+            const statusEl = document.getElementById('syncStatus');
+            statusEl.textContent = message;
+            statusEl.className = 'sync-status';
+            if (type === 'synced') statusEl.classList.add('synced');
+            if (type === 'error') statusEl.classList.add('error');
+        }
+
+        window.handleFileSelect = function(event) {
+            const file = event.target.files[0];
+            const label = document.getElementById('fileLabel');
+            const labelText = document.getElementById('fileLabelText');
+            
+            if (file) {
+                selectedFile = file;
+                label.classList.add('has-file');
+                labelText.textContent = '✓ Image';
+            } else {
+                selectedFile = null;
+                label.classList.remove('has-file');
+                labelText.textContent = 'Image';
+            }
+        }
+
+        function loadShows() {
+            updateSyncStatus('Loading shows...');
+            
+            unsubscribe = onSnapshot(showsCollection, (snapshot) => {
+                shows = [];
+                snapshot.forEach((doc) => {
+                    shows.push({
+                        id: doc.id,
+                        ...doc.data()
+                    });
+                });
+                shows.sort((a, b) => {
+                    if (a.order !== undefined && b.order !== undefined) {
+                        return a.order - b.order;
+                    }
+                    return a.name.localeCompare(b.name);
+                });
+                renderShows();
+                updateSyncStatus('✓ Synced across devices', 'synced');
+            }, (error) => {
+                console.error('Error loading shows:', error);
+                updateSyncStatus('Connection error', 'error');
+            });
+        }
+
+        window.addShow = async function(event) {
+            event.preventDefault();
+            const input = document.getElementById('newShowInput');
+            const imageInput = document.getElementById('imageInput');
+            const addButton = document.getElementById('addButton');
+            const name = input.value.trim();
+            
+            if (!name) return;
+
+            try {
+                addButton.disabled = true;
+                updateSyncStatus('Saving...');
+                
+                const maxOrder = shows.length > 0 ? Math.max(...shows.map(s => s.order || 0)) : -1;
+                const showData = {
+                    name: name,
+                    season: 1,
+                    episode: 1,
+                    order: maxOrder + 1
+                };
+
+                // Upload image if selected
+                if (selectedFile) {
+                    updateSyncStatus('Uploading image...');
+                    const timestamp = Date.now();
+                    const fileName = `${timestamp}_${selectedFile.name}`;
+                    const storageRef = ref(storage, `show-images/${fileName}`);
+                    
+                    await uploadBytes(storageRef, selectedFile);
+                    const imageUrl = await getDownloadURL(storageRef);
+                    showData.imageUrl = imageUrl;
+                    showData.imagePath = `show-images/${fileName}`;
+                }
+
+                await addDoc(showsCollection, showData);
+                
+                input.value = '';
+                imageInput.value = '';
+                selectedFile = null;
+                const label = document.getElementById('fileLabel');
+                const labelText = document.getElementById('fileLabelText');
+                label.classList.remove('has-file');
+                labelText.textContent = 'Image';
+                
+                updateSyncStatus('✓ Synced across devices', 'synced');
+            } catch (error) {
+                console.error('Error adding show:', error);
+                updateSyncStatus('Error saving', 'error');
+            } finally {
+                addButton.disabled = false;
+            }
+        }
+
+        window.updateShow = async function(id, updates) {
+            try {
+                updateSyncStatus('Saving...');
+                const showDoc = doc(db, 'shows', id);
+                await updateDoc(showDoc, updates);
+                updateSyncStatus('✓ Synced across devices', 'synced');
+            } catch (error) {
+                console.error('Error updating show:', error);
+                updateSyncStatus('Error saving', 'error');
+            }
+        }
+
+        window.incrementEpisode = async function(id) {
+            const show = shows.find(s => s.id === id);
+            if (show) {
+                await updateShow(id, { episode: show.episode + 1 });
+            }
+        }
+
+        window.deleteShow = async function(id) {
+            if (!confirm('Are you sure you want to delete this show?')) {
+                return;
+            }
+
+            try {
+                updateSyncStatus('Deleting...');
+                
+                // Delete image from storage if it exists
+                const show = shows.find(s => s.id === id);
+                if (show && show.imagePath) {
+                    const imageRef = ref(storage, show.imagePath);
+                    try {
+                        await deleteObject(imageRef);
+                    } catch (error) {
+                        console.warn('Error deleting image:', error);
+                    }
+                }
+                
+                const showDoc = doc(db, 'shows', id);
+                await deleteDoc(showDoc);
+                updateSyncStatus('✓ Synced across devices', 'synced');
+            } catch (error) {
+                console.error('Error deleting show:', error);
+                updateSyncStatus('Error deleting', 'error');
+            }
+        }
+
+        async function reorderShows(newOrder) {
+            try {
+                updateSyncStatus('Saving order...');
+                const batch = writeBatch(db);
+                newOrder.forEach((show, index) => {
+                    const showDoc = doc(db, 'shows', show.id);
+                    batch.update(showDoc, { order: index });
+                });
+                await batch.commit();
+                updateSyncStatus('✓ Synced across devices', 'synced');
+            } catch (error) {
+                console.error('Error reordering shows:', error);
+                updateSyncStatus('Error saving order', 'error');
+            }
+        }
+
+        function handleDragStart(e, index) {
+            draggedIndex = index;
+            e.target.classList.add('dragging');
+            e.dataTransfer.effectAllowed = 'move';
+            e.dataTransfer.setData('text/html', e.target.innerHTML);
+        }
+
+        function handleDragOver(e) {
+            if (e.preventDefault) {
+                e.preventDefault();
+            }
+            e.dataTransfer.dropEffect = 'move';
+            return false;
+        }
+
+        function handleDragEnter(e, index) {
+            if (index !== draggedIndex) {
+                e.target.closest('.show-item').classList.add('drag-over');
+            }
+        }
+
+        function handleDragLeave(e) {
+            e.target.closest('.show-item').classList.remove('drag-over');
+        }
+
+        function handleDrop(e, dropIndex) {
+            if (e.stopPropagation) {
+                e.stopPropagation();
+            }
+            e.preventDefault();
+
+            const items = document.querySelectorAll('.show-item');
+            items.forEach(item => item.classList.remove('drag-over'));
+
+            if (draggedIndex !== dropIndex) {
+                const newShows = [...shows];
+                const draggedItem = newShows[draggedIndex];
+                newShows.splice(draggedIndex, 1);
+                newShows.splice(dropIndex, 0, draggedItem);
+                
+                shows = newShows;
+                renderShows();
+                reorderShows(newShows);
+            }
+
+            return false;
+        }
+
+        function handleDragEnd(e) {
+            e.target.classList.remove('dragging');
+            const items = document.querySelectorAll('.show-item');
+            items.forEach(item => item.classList.remove('drag-over'));
+        }
+
+        function renderShows() {
+            const container = document.getElementById('showsList');
+            
+            if (shows.length === 0) {
+                container.innerHTML = '<div class="empty-state">No shows added yet. Add one above to get started!</div>';
+                return;
+            }
+
+            container.innerHTML = shows.map((show, index) => `
+                <div class="show-item" 
+                     draggable="true"
+                     ondragstart="handleDragStart(event, ${index})"
+                     ondragover="handleDragOver(event)"
+                     ondragenter="handleDragEnter(event, ${index})"
+                     ondragleave="handleDragLeave(event)"
+                     ondrop="handleDrop(event, ${index})"
+                     ondragend="handleDragEnd(event)">
+                    <div class="drag-handle">
+                        <svg class="icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8h16M4 16h16"></path>
+                        </svg>
+                    </div>
+                    <div class="show-content">
+                        ${show.imageUrl ? 
+                            `<img src="${show.imageUrl}" alt="${escapeHtml(show.name)}" class="show-image">` :
+                            `<div class="show-image-placeholder">
+                                <svg class="icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                                </svg>
+                            </div>`
+                        }
+                        <div class="show-info">
+                            <div class="show-name">${escapeHtml(show.name)}</div>
+                            <div class="show-controls">
+                                <div class="control-group">
+                                    <label>Season</label>
+                                    <select onchange="updateShow('${show.id}', { season: parseInt(this.value) })">
+                                        ${Array.from({length: 20}, (_, i) => i + 1).map(n => 
+                                            `<option value="${n}" ${show.season === n ? 'selected' : ''}>${n}</option>`
+                                        ).join('')}
+                                    </select>
+                                </div>
+                                <div class="control-group">
+                                    <label>Episode</label>
+                                    <select onchange="updateShow('${show.id}', { episode: parseInt(this.value) })">
+                                        ${Array.from({length: 50}, (_, i) => i + 1).map(n => 
+                                            `<option value="${n}" ${show.episode === n ? 'selected' : ''}>${n}</option>`
+                                        ).join('')}
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="show-actions">
+                        <button class="btn btn-next" onclick="incrementEpisode('${show.id}')" title="Next Episode">
+                            <svg class="icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                            </svg>
+                            Next
+                        </button>
+                        <button class="btn btn-delete" onclick="deleteShow('${show.id}')" title="Delete Show">
+                            <svg class="icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // Make drag functions globally accessible
+        window.handleDragStart = handleDragStart;
+        window.handleDragOver = handleDragOver;
+        window.handleDragEnter = handleDragEnter;
+        window.handleDragLeave = handleDragLeave;
+        window.handleDrop = handleDrop;
+        window.handleDragEnd = handleDragEnd;
+
+        loadShows();
+    </script>
+</body>
+</html>
